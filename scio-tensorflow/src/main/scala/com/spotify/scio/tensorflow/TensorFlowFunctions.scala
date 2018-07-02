@@ -18,7 +18,6 @@
 package com.spotify.scio.tensorflow
 
 import java.nio.ByteBuffer
-import java.util.concurrent.{CompletableFuture, CompletionStage}
 import java.util.function.{Consumer, Function}
 
 import com.google.common.base.Charsets
@@ -26,7 +25,7 @@ import com.spotify.featran.{FeatureExtractor, MultiFeatureExtractor}
 import com.spotify.scio.io.{Tap, TextTap}
 import com.spotify.scio.testing.TextIO
 import com.spotify.scio.transforms.DoFnWithResource.ResourceType
-import com.spotify.scio.transforms.{DoFnWithResource, JavaAsyncDoFn}
+import com.spotify.scio.transforms.DoFnWithResource
 import com.spotify.scio.util.ScioUtil
 import com.spotify.scio.values.SCollection
 import com.spotify.zoltar.tf.{TensorFlowGraphModel, TensorFlowModel}
@@ -35,7 +34,8 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import javax.annotation.Nullable
 import org.apache.beam.sdk.io.{Compression, FileSystems}
-import org.apache.beam.sdk.transforms.DoFn.Teardown
+import org.apache.beam.sdk.transforms.DoFn
+import org.apache.beam.sdk.transforms.DoFn.{ProcessElement, Teardown}
 import org.apache.beam.sdk.util.MimeTypes
 import org.apache.beam.sdk.{io => gio}
 import org.slf4j.LoggerFactory
@@ -51,18 +51,17 @@ private[this] abstract class PredictDoFn[T, V, M <: Model[_]](
   fetchOp: Seq[String],
   inFn: T => Map[String, Tensor[_]],
   outFn: (T, Map[String, Tensor[_]]) => V)
-    extends JavaAsyncDoFn[T, V, ModelLoader[M]] {
+    extends DoFnWithResource[T, V, ModelLoader[M]] {
   @transient private lazy val log = LoggerFactory.getLogger(this.getClass)
 
-  def withResourceRunner(f: Session#Runner => V): CompletableFuture[V]
+  def withResourceRunner(f: Session#Runner => V): V
 
   override def getResourceType: DoFnWithResource.ResourceType = ResourceType.PER_INSTANCE
 
-  /**
-   * Process an element asynchronously.
-   */
-  override def processElement(input: T): CompletableFuture[V] = {
-    val result: CompletionStage[V] = withResourceRunner { runner =>
+  @ProcessElement
+  def processElement(c: DoFn[T, V]#ProcessContext): Unit = {
+    val input = c.element()
+    val result: V = withResourceRunner { runner =>
       val i = inFn(input)
       var result: V = null.asInstanceOf[V]
 
@@ -85,7 +84,7 @@ private[this] abstract class PredictDoFn[T, V, M <: Model[_]](
       result
     }
 
-    result.toCompletableFuture
+    c.output(result)
   }
 
   @Teardown
@@ -106,13 +105,14 @@ private[tensorflow] class SavedBundlePredictDoFn[T, V](uri: String,
                                                        outFn: (T, Map[String, Tensor[_]]) => V)
     extends PredictDoFn[T, V, TensorFlowModel](fetchOp, inFn, outFn) {
 
-  override def withResourceRunner(f: Session#Runner => V): CompletableFuture[V] =
+  override def withResourceRunner(f: Session#Runner => V): V =
     getResource
       .get()
       .thenApply[V](new Function[TensorFlowModel, V] {
         override def apply(model: TensorFlowModel): V = f(model.instance().session().runner())
       })
       .toCompletableFuture
+      .get()
 
   override def createResource(): ModelLoader[TensorFlowModel] = Models.tensorFlow(uri, options)
 }
@@ -129,13 +129,14 @@ private[tensorflow] class GraphPredictDoFn[T, V](uri: String,
     Models.tensorFlowGraph(uri, configOpt.orNull, null)
   }
 
-  override def withResourceRunner(f: Session#Runner => V): CompletableFuture[V] =
+  override def withResourceRunner(f: Session#Runner => V): V =
     getResource
       .get()
       .thenApply[V](new Function[TensorFlowGraphModel, V] {
         override def apply(model: TensorFlowGraphModel): V = f(model.instance().runner())
       })
       .toCompletableFuture
+      .get()
 }
 
 /**

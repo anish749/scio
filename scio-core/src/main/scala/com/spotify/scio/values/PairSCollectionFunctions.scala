@@ -668,7 +668,22 @@ This might exceed worker caches in some runners.nctionsTest 8s
 Please set runner specific worker memory cache above 1226.8874731063843.
 More info: https://spotify.github.io/scio/FAQ.html#how-do-i-improve-side-input-performance-
 
-  | => com.spotify.scio.values.PairSCollectionFunctionsTest 184s
+[info] PairSCollectionFunctionsTest:
+[info] PairSCollection
+[info] - should support sparseIntersectByKey() (6 seconds, 678 milliseconds)
+[info] - should support sparseIntersectByKey() with computeExact set to true (571 milliseconds)
+[info] - should support sparseIntersectByKey() with duplicate keys (504 milliseconds)
+[info] - should support sparseIntersectByKey() with partitions (6 minutes, 24 seconds)
+[info] - should support sparseIntersectByKey() with empty LHS (335 milliseconds)
+[info] - should support sparseIntersectByKey() with empty RHS (225 milliseconds)
+[info] ScalaTest
+[info] Run completed in 6 minutes, 33 seconds.
+[info] Total number of tests run: 6
+[info] Suites: completed 1, aborted 0
+[info] Tests: succeeded 6, failed 0, canceled 0, ignored 0, pending 0
+[info] All tests passed.
+[info] Passed: Total 6, Failed 0, Errors 0, Passed 6
+[success] Total time: 395 s (06:35), completed Nov 20, 2019 2:29:39 PM
              */
           }
           .asSingletonSideInput(bfAggregator.monoid.zero)

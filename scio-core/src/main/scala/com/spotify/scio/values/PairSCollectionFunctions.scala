@@ -655,6 +655,21 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)]) {
                 outputInstance = outputInstance += data.next()
               }
               outputInstance
+            /*
+Estimated size of BloomFilter(s) for 1000000000 elements with false positive probability of
+0.01 in step tfName:5 is 1226.8874731063843 MB.
+
+Optimal Width of each BloomFilter: 1286484759 bits.
+Capacity of each BloomFilter: 134217728 elements.
+Number of BFs: 8
+
+This might exceed worker caches in some runners.nctionsTest 8s
+
+Please set runner specific worker memory cache above 1226.8874731063843.
+More info: https://spotify.github.io/scio/FAQ.html#how-do-i-improve-side-input-performance-
+
+  | => com.spotify.scio.values.PairSCollectionFunctionsTest 184s
+             */
           }
           .asSingletonSideInput(bfAggregator.monoid.zero)
       }

@@ -29,6 +29,8 @@ import org.apache.beam.sdk.transforms._
 import org.apache.beam.sdk.values.{KV, PCollection, PCollectionView}
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
+
 private object PairSCollectionFunctions {
   private val logger = LoggerFactory.getLogger(this.getClass)
 
@@ -630,7 +632,30 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)]) {
     self.keys
       .hashPartition(n)
       .map { me =>
-        me.aggregate(bfAggregator.monoid.zero)(_ += _, _ ++= _)
+        me.groupBy(_ => ())
+          .values
+          .map{
+            it =>
+              /*
+              val bf = BloomFilter(numHashes, fpProb)
+              bf.create(it.iterator)
+[info] - should support sparseIntersectByKey() (9 seconds, 426 milliseconds)
+[info] - should support sparseIntersectByKey() with computeExact set to true (1 second, 109 milliseconds)
+[info] - should support sparseIntersectByKey() with duplicate keys (668 milliseconds)
+[info] - should support sparseIntersectByKey() with partitions (1 second, 266 milliseconds)
+[info] - should support sparseIntersectByKey() with empty LHS (346 milliseconds)
+[info] - should support sparseIntersectByKey() with empty RHS (222 milliseconds)
+              */
+
+              var outputInstance =
+              MutableSparseBFInstance(KirMit32Hash(numHashes, width),
+                mutable.Buffer.empty[Array[Int]]).asMutableBFInstance
+              val data = it.iterator
+              while (data.hasNext) {
+                outputInstance = outputInstance += data.next()
+              }
+              outputInstance
+          }
           .asSingletonSideInput(bfAggregator.monoid.zero)
       }
   }

@@ -439,7 +439,7 @@ private[scio] final case class MutableSparseBFInstance[A](
    * Convert to a MutableBFInstance backed by an actual BitSet instead of storing indexes in a Set.
    */
   @inline
-  private def asMutableBFInstance = MutableBFInstance(hashes, toBitSet)
+  def asMutableBFInstance: MutableBF[A] = MutableBFInstance(hashes, toBitSet)
 
   // We check the fill ratio and return a MutableBFInstance if the fill is high.
   // This check works assuming there are no hash collision. In reality the conversion
@@ -574,7 +574,7 @@ private[scio] object MutableBFInstance {
  * We have noticed 2 to 4 times higher throughput when using this approach compared to the
  * implementation in Algebird.
  */
-private[util] final case class KirMit32Hash[A](numHashes: Int, width: Int)(
+final case class KirMit32Hash[A](numHashes: Int, width: Int)(
   implicit hash128: Hash128[A]
 ) {
   def apply(valueToHash: A): Array[Int] = {
